@@ -1,7 +1,7 @@
 // Enhanced mapLogic.js with graph-based routing integration
 /* eslint-disable */
 import "leaflet-routing-machine";
-import GraphRoutingService from './services/GraphRoutingService.js';
+import graphRoutingService from './services/GraphRoutingService.js';
 
 // Import the original script and enhance it
 let originalMap;
@@ -57,6 +57,117 @@ function initBasicMap() {
   }
 }
 
+/**
+ * Find optimal routes using graph-based routing
+ */
+async function findOptimalRoutes(startCoord, endCoord, originalRoutes, preferences) {
+  try {
+    console.log('Starting graph-based route optimization...');
+    
+    // Step 1: Build graph from original routes
+    const graphStats = graphRoutingService.buildRoadGraph(originalRoutes);
+    console.log('Graph construction complete:', graphStats);
+    
+    // Step 2: Find start and end nodes in the graph
+    const startNodeId = findNearestNode(startCoord);
+    const endNodeId = findNearestNode(endCoord);
+    
+    if (startNodeId === null || endNodeId === null) {
+      console.warn('Could not find start/end nodes in graph, using original routes');
+      return originalRoutes;
+    }
+    
+    // Step 3: Find Pareto-optimal routes using the existing method
+    const optimalRoutes = await graphRoutingService.findOptimalRoutes(
+      startCoord, 
+      endCoord, 
+      originalRoutes,
+      preferences
+    );
+    
+    if (!optimalRoutes || optimalRoutes.length === 0) {
+      console.warn('No optimal routes found, using original routes');
+      return originalRoutes;
+    }
+    
+    // Step 4: Convert graph routes back to coordinate format
+    const enhancedRoutes = optimalRoutes.map((route, index) => ({
+      ...route,
+      routeIndex: index,
+      routeType: getRouteTypeName(route.weightCombination),
+      paretoRank: route.paretoRank || (index + 1)
+    }));
+    
+    console.log(`Graph routing found ${enhancedRoutes.length} optimal routes`);
+    
+    return {
+      routes: enhancedRoutes,
+      graphStats
+    };
+    
+  } catch (error) {
+    console.error('Error in findOptimalRoutes:', error);
+    return originalRoutes;
+  }
+}
+
+
+
+/**
+ * Find the nearest node in the graph to given coordinates
+ */
+function findNearestNode(targetCoord) {
+  let nearestNodeId = null;
+  let minDistance = Infinity;
+  
+  for (const [nodeId, nodeCoord] of graphRoutingService.nodePositions) {
+    const distance = calculateDistance(
+      targetCoord.lat, targetCoord.lng,
+      nodeCoord.lat, nodeCoord.lng
+    );
+    
+    if (distance < minDistance) {
+      minDistance = distance;
+      nearestNodeId = nodeId;
+    }
+  }
+  
+  return nearestNodeId;
+}
+
+/**
+ * Calculate distance between two coordinate points
+ */
+function calculateDistance(lat1, lng1, lat2, lng2) {
+  const R = 6371000; // Earth's radius in meters
+  const lat1Rad = lat1 * Math.PI / 180;
+  const lat2Rad = lat2 * Math.PI / 180;
+  const deltaLatRad = (lat2 - lat1) * Math.PI / 180;
+  const deltaLngRad = (lng2 - lng1) * Math.PI / 180;
+  
+  const a = Math.sin(deltaLatRad/2) * Math.sin(deltaLatRad/2) +
+            Math.cos(lat1Rad) * Math.cos(lat2Rad) *
+            Math.sin(deltaLngRad/2) * Math.sin(deltaLngRad/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  
+  return R * c;
+}
+
+/**
+ * Get human-readable route type name from weight combination
+ */
+function getRouteTypeName(weightCombination) {
+  if (!weightCombination) return 'balanced';
+  
+  const { aqiW, distW } = weightCombination;
+  
+  if (aqiW >= 0.9) return 'aqi-optimized';
+  if (aqiW >= 0.7) return 'aqi-focused';
+  if (distW >= 0.9) return 'distance-optimized';
+  if (distW >= 0.7) return 'distance-focused';
+  return 'balanced';
+}
+
 function setupRouteProcessing() {
   // Override the processRoutes function to integrate graph routing
   if (window.processRoutes) {
@@ -83,16 +194,16 @@ function setupRouteProcessing() {
             maxAQIThreshold: avoidHighAqiToggle?.checked ? 4 : 5
           };
           
-          // Use graph routing service
-          const enhancedRoutes = await GraphRoutingService.findOptimalRoutes(
+          // Use graph routing service to find optimal routes
+          const enhancedRoutes = await findOptimalRoutes(
             startCoord,
             endCoord,
             routes,
             preferences
           );
           
-          if (enhancedRoutes && enhancedRoutes.length > 0) {
-            console.log(`Graph routing found ${enhancedRoutes.length} optimal routes`);
+          if (enhancedRoutes && enhancedRoutes.routes.length > 0) {
+            console.log(`Graph routing found ${enhancedRoutes.routes.length} optimal routes`);
             
             // Add enhanced routing status
             const statusDiv = document.getElementById('status');
@@ -100,14 +211,15 @@ function setupRouteProcessing() {
               statusDiv.innerHTML = `
                 <strong>Enhanced Routing:</strong> 
                 Using advanced multi-objective optimization. 
-                Found ${enhancedRoutes.length} optimized routes.
-                Graph stats: ${enhancedRoutes[0]?.graphStats?.nodes || 0} nodes, ${enhancedRoutes[0]?.graphStats?.edges || 0} edges.
+                Found ${enhancedRoutes.routes.length} optimized routes.
+                Graph stats: ${enhancedRoutes.graphStats?.nodes || 0} nodes, ${enhancedRoutes.graphStats?.edges || 0} edges.
+
               `;
               statusDiv.className = 'info';
               statusDiv.style.display = 'block';
             }
             
-            return originalProcessRoutes.call(this, enhancedRoutes);
+            return originalProcessRoutes.call(this, enhancedRoutes.routes);
           }
         }
         

@@ -1,73 +1,95 @@
-# AQI-Aware Routing System - Research Implementation
+# Multi-Objective AQI-Aware Routing System: Pareto-Optimal Pathfinding for Health-Aware Urban Mobility
 
 ## Overview
 
-This project implements a multi-objective, graph-based routing system that minimizes air pollution exposure while considering travel time and distance. The system has been enhanced from a demo application to research-grade software suitable for academic publication.
+This project implements a **multi-objective, graph-based routing system** that minimizes air pollution exposure while considering travel time and distance. The system provides intelligent route recommendations based on **real-time Air Quality Index (AQI) data** and generates **Pareto-optimal routes** balancing health, time, and distance.
 
-## 🔬 Research Features Implemented
+This implementation is research-grade and supports reproducibility for academic publications.
 
-### Priority 1: Graph-based Shortest-Exposure Routing ✅
-- **Multi-objective Dijkstra algorithm** with Pareto front optimization
-- **Exposure dose calculation**: AQI × travel time for each route segment
-- **Graph construction** from road network with weighted edges
-- **Pareto-optimal route selection** balancing AQI, distance, and time
-- **Real-time route evaluation** with caching optimization
+---
 
-### Priority 2: Evaluation Framework ✅
-- **Comprehensive metrics calculation**: total dose, peak AQI, fuel cost, CO₂ emissions
-- **Baseline comparison system** for research validation
-- **Statistical analysis tools** with diversity scoring
-- **Research dashboard** with interactive charts and data export
-- **CSV/JSON export** for research paper data
+## 🚀 Core Features
 
-### Priority 3: Spatio-temporal AQI Prediction 🔄 (Next Phase)
-- Multi-source data fusion (OpenWeather + low-cost sensors)
-- Kriging/Gaussian-process regression for interpolation
-- LSTM/Prophet models for 1-3h AQI forecasting
+### Graph-based Shortest-Exposure Routing ✅
 
-### Priority 4: Uncertainty-aware Routing 🔄 (Next Phase)
-- Probabilistic AQI modeling (μ, σ²)
-- Chance-constrained shortest path algorithms
-- Monte-Carlo sampling for uncertainty quantification
+* **Multi-objective Dijkstra algorithm** with Pareto front optimization
+* **Exposure dose calculation**: AQI × travel time per route segment
+* **Graph construction** from road network with weighted edges
+* **Pareto-optimal route selection** balancing AQI, distance, and time
+* **Real-time route evaluation** with caching for fast performance
 
-### Priority 5: Personalized Risk & Adaptation 🔄 (Next Phase)
-- User-specific ventilation rate calculations
-- Real-time route adaptation
-- Health-based routing recommendations
+### Route Optimization ✅
+
+* **Multi-objective optimization** balancing air quality, distance, and travel time
+* **Pareto front analysis** for route trade-offs
+* **Real-time AQI integration** via OpenWeather API
+* **Intelligent caching** for repeated queries
+
+### Future Enhancements 🔄
+
+* Spatio-temporal AQI prediction
+* Uncertainty-aware routing
+* Personalized health-based recommendations
+* Real-time adaptive routing
+
+---
 
 ## 🏗️ System Architecture
 
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   React UI      │───▶│  Graph Router    │───▶│   AQI Service   │
-│  - Dashboard    │    │  - Dijkstra      │    │  - OpenWeather  │
-│  - Controls     │    │  - Pareto Front  │    │  - Caching      │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-         │                       │                       │
-         ▼                       ▼                       ▼
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│ Research Tools  │    │ Evaluation Svc   │    │  Original Map   │
-│  - Charts       │    │  - Metrics       │    │  - Leaflet      │
-│  - Export       │    │  - Statistics    │    │  - OSRM         │
-│  - Analysis     │    │  - Reporting     │    │  - Routing      │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-```
+The system follows a three-layer architecture with clear separation of concerns:
+
+![System Architecture](images/system_architecture.png)
+
+### Architecture Overview
+
+The system implements a **layered architecture** with three distinct layers:
+
+1. **Data Services Layer** - External data sources and caching
+2. **Algorithmic Core Layer** - Multi-objective optimization and evaluation
+3. **User Interface Layer** - Interactive visualization and user interaction
+
+### Data Flow Architecture
+
+1. **Data Services Layer**: 
+   - **OpenWeather API** provides real-time AQI data
+   - **OSRM Data** supplies road network topology
+   - **AQIService** implements intelligent caching with TTL
+
+2. **Algorithmic Core Layer**:
+   - **GraphRoutingService** implements multi-objective Dijkstra with Pareto optimization
+   - **EvaluationService** calculates exposure metrics, AQI statistics, and CO2 emissions
+
+3. **User Interface Layer**:
+   - **React Frontend** with Leaflet map visualization
+   - Interactive route comparison and analysis
+
+---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js (v16 or higher)
-- npm or yarn
-- OpenWeather API key (already included for demo)
+
+* Node.js (v16 or higher)
+* npm or yarn
+* OpenWeather API key (for AQI data)
+* OpenCage API key (for geocoding)
 
 ### Installation
 
 ```bash
 # Clone the repository
-cd route-aqi-app
+git clone https://github.com/Harshdhoot04/Maps-using-AQI.git
+cd Maps-using-AQI
+
+# Checkout research branch
+git checkout akhilesh
 
 # Install dependencies
 npm install
+
+# Configure environment variables
+cp .env.example .env
+# Edit .env with your API keys
 
 # Start development server
 npm run dev
@@ -75,189 +97,206 @@ npm run dev
 
 Open [http://localhost:5173](http://localhost:5173) to view the application.
 
-## 📊 Using the Research Dashboard
+---
 
-1. **Navigate to the app** and enter start/end locations
-2. **Enable "Enhanced Graph Routing"** in preferences
-3. **Click "Find Route"** to generate optimized routes
-4. **Click the "Research" button** (bottom-right) to open analysis dashboard
-5. **Explore three tabs**:
-   - **Overview**: Key metrics and health risk distribution
-   - **Pareto Analysis**: Route trade-offs and improvements
-   - **Statistics**: Detailed performance metrics
-6. **Export data** in JSON/CSV format for research analysis
+## 📊 Using the Application
+
+1. Enter **start and end locations** in the app.
+2. Enable **Enhanced Graph Routing** in preferences.
+3. Click **Find Route** to generate optimized routes.
+4. View **route analysis** with AQI exposure metrics.
+5. Compare **different route options** based on air quality, travel time, and distance.
+
+---
+
+## 🧪 Algorithm Implementation
+
+### Multi-objective Optimization
+
+1. **Graph Construction**: Convert OSRM routes into a weighted graph.
+2. **Optimization Problem**:
+
+```
+minimize: [exposure_dose, travel_time, distance]
+subject to: AQI_threshold, connectivity_constraints
+```
+
+3. **Pareto Front Extraction**: Non-dominated sorting of candidate routes.
+4. **Performance Evaluation**: Against baseline shortest-path routing.
+
+### Exposure Dose Calculation
+
+```
+exposure_dose = Σ(AQI_segment × travel_time_segment)
+```
+
+### Algorithm Complexity
+
+- **Time Complexity**: O((V + E) log V) for Dijkstra with V vertices and E edges
+- **Space Complexity**: O(V + E) for graph representation
+- **Pareto Front**: O(k²) where k is the number of candidate routes
+
+---
+
+## 📁 Project Structure
+
+```
+route-aqi-app/
+├── images/                          # Documentation diagrams
+│   ├── system_architecture.png      # System architecture diagram
+│   ├── flowchart_methodology.png    # Methodology flowchart
+│   ├── SequenceDiagram.png          # Sequence diagram
+│   ├── ui_home.png                  # UI screenshots
+│   ├── ui_metrics_route1.png        # Route metrics display
+│   ├── ui_metrics_route2.png        # Alternative route metrics
+│   └── ui_routes.png                # Route visualization
+├── src/
+│   ├── components/
+│   │   └── Sidebar.jsx              # Main UI controls & sidebar
+│   ├── services/
+│   │   ├── AQIService.js            # Air quality data service
+│   │   └── GraphRoutingService.js   # Multi-objective route optimization
+│   ├── App.jsx                      # Main React application
+│   ├── main.jsx                     # Application entry point
+│   ├── mapLogic.js                  # Map integration & routing logic
+│   └── config.js                    # Configuration module
+├── index.html                       # HTML template
+├── style.css                        # Application styling
+├── script.js                        # Legacy map implementation
+├── benchmark_tests.bat              # Performance testing script
+├── .env                            # Environment variables (API keys)
+├── .env.example                    # Environment template
+├── .gitignore                      # Git ignore rules
+├── package.json                    # Dependencies & scripts
+├── package-lock.json               # Dependency lock file
+├── LICENSE                         # MIT License
+├── README.md                       # Project documentation
+├── IMPLEMENTATION_SUMMARY.md       # Implementation details
+├── TROUBLESHOOTING.md              # Troubleshooting guide
+└── PERFORMANCE_TEST_REPORT.md      # Performance benchmarks & analysis
+```
+
+---
+
+## 🔧 Configuration
+
+### Environment Variables
+
+* `OPENWEATHER_KEY`: OpenWeather API key for AQI data
+* `OPENCAGE_KEY`: OpenCage API key for geocoding
+
+### Route Preferences
+
+* **AQI Weight**: 0.1–0.9
+* **Distance Weight**: 0.1–0.9
+* **Max AQI Threshold**: 1–5
+* **Route Alternatives**: Number of routes to generate
+
+### Performance Tuning
+
+* **Cache TTL**: 30 minutes for AQI data
+* **Tile Size**: 0.02° (≈2km) for spatial caching
+* **Route Sampling**: Every 5th coordinate for AQI calculation
+
+---
+
+## 🚀 Performance Features
+
+* **Intelligent Caching**: AQI data cached for 30 minutes with spatial tiling
+* **Graph Optimization**: Efficient construction and traversal algorithms
+* **Pareto Front**: Fast multi-objective optimization with non-dominated sorting
+* **Real-time Updates**: Dynamic AQI integration with fallback mechanisms
+* **Memory Management**: Efficient data structures for large road networks
+
+---
 
 ## 🧪 Research Methodology
 
-### Algorithm Implementation
-1. **Graph Construction**: Convert OSRM routes to weighted graph
-2. **Multi-objective Optimization**: 
-   ```
-   minimize: [exposure_dose, travel_time, distance]
-   subject to: AQI_threshold, connectivity_constraints
-   ```
-3. **Pareto Front Extraction**: Non-dominated sorting
-4. **Performance Evaluation**: Against baseline shortest-path
+### Experimental Setup
 
-### Metrics Calculated
-- **Total Exposure Dose**: Σ(AQI_i × time_i) for each route segment
-- **Peak AQI**: Maximum pollution level encountered
-- **Health Risk Assessment**: Based on WHO guidelines
-- **Environmental Impact**: CO₂ emissions, fuel consumption
-- **Route Diversity**: Coefficient of variation across metrics
+1. **Baseline Comparison**: Standard shortest-path routing
+2. **Metrics Evaluation**: 
+   - Exposure dose reduction
+   - Travel time increase
+   - Distance deviation
+   - Pareto efficiency
 
-### Statistical Analysis
-- **Descriptive Statistics**: Mean, std dev, min/max for all metrics
-- **Improvement Analysis**: % reduction vs. baseline routes
-- **Pareto Efficiency**: Dominance ranking and frontier analysis
-- **Significance Testing**: Framework for multiple runs (Wilcoxon, t-test)
+### Performance Benchmarks
 
-## 📈 Research Results
+- **Route Generation**: < 2 seconds for 50km routes
+- **AQI Integration**: < 500ms with caching
+- **Pareto Front**: < 1 second for 10 alternative routes
+- **Memory Usage**: < 100MB for typical urban areas
 
-The system demonstrates:
-- **34.2% average reduction** in exposure dose vs. shortest distance routes
-- **Pareto-optimal trade-offs** between health, time, and distance
-- **Real-time performance** with graph caching (sub-second response)
-- **Scalable architecture** supporting multiple cities and time periods
+---
 
-## 🔧 Technical Implementation
+## 🔧 Troubleshooting
 
-### Key Components
+If the map does not display correctly, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for guidance.
 
-#### GraphRoutingService.js
-```javascript
-// Multi-objective Dijkstra implementation
-findParetoOptimalRoutes(startNodeId, endNodeId, preferences)
-
-// Exposure dose calculation
-calculateExposureDose(edgeKey) → AQI × travelTime
-
-// Graph construction from route data
-buildRoadGraph(routes) → adjacency list with weights
-```
-
-#### EvaluationService.js
-```javascript
-// Comprehensive route evaluation
-evaluateRoutes(routes, baseline, metadata)
-
-// Research report generation
-generateEvaluationReport() → metrics, analysis, recommendations
-
-// Data export for papers
-exportForResearch(format) → JSON/CSV
-```
-
-#### ResearchDashboard.jsx
-```javascript
-// Interactive visualization component
-- Overview metrics cards
-- Pareto frontier scatter plots
-- Statistical analysis tables
-- Export functionality
-```
-
-### Dependencies Added
-- `dijkstrajs`: Graph shortest-path algorithms
-- `chart.js + react-chartjs-2`: Data visualization
-- `ml-matrix + ml-regression-polynomial`: Future ML features
-
-## 📝 Research Applications
-
-### Academic Publications
-This implementation provides data and analysis for papers on:
-- **Multi-objective routing optimization**
-- **Air quality exposure minimization**
-- **Urban health and transportation**
-- **Smart city routing systems**
-
-### Conference Presentations
-- **ACM SIGSPATIAL**: Spatial algorithms and optimization
-- **Transportation Research Board**: Health-aware routing
-- **AAAI AI for Social Impact**: Public health applications
-
-### Data Export Features
-- **JSON format**: Full research data with metadata
-- **CSV format**: Route metrics for statistical analysis
-- **Timestamps**: Temporal analysis support
-- **Metadata**: City, weather conditions, user preferences
-
-## 🛠️ Development
-
-### Project Structure
-```
-src/
-├── components/
-│   ├── ResearchDashboard.jsx    # Analysis interface
-│   └── Sidebar.jsx              # Enhanced controls
-├── services/
-│   ├── GraphRoutingService.js   # Core algorithms
-│   ├── EvaluationService.js     # Research metrics
-│   └── AQIService.js           # Data fetching
-└── mapLogic.js                  # Integration layer
-```
-
-### Building for Production
-```bash
-npm run build
-npm run preview
-```
-
-## 🚧 Next Implementation Phases
-
-### Phase 2: Spatio-temporal Prediction
-1. **Data Sources**: Integrate PurpleAir, AQICN APIs
-2. **Interpolation**: Implement kriging for spatial prediction
-3. **Forecasting**: Add LSTM models for temporal prediction
-4. **Real-time Updates**: WebSocket integration
-
-### Phase 3: Uncertainty Quantification
-1. **Probabilistic Models**: Gaussian process AQI prediction
-2. **Risk-aware Routing**: Chance-constrained optimization
-3. **Confidence Intervals**: Uncertainty visualization
-4. **Robust Optimization**: Min-max regret approaches
-
-### Phase 4: Personalization
-1. **User Profiles**: Age, health conditions, activity level
-2. **Physiological Models**: Individual ventilation rates
-3. **Adaptive Routing**: Dynamic re-routing based on exposure
-4. **Health Recommendations**: Personalized travel advice
+---
 
 ## 🤝 Contributing
 
-This research implementation welcomes contributions:
-1. **Fork the repository**
-2. **Create feature branch**: `git checkout -b feature/new-algorithm`
-3. **Implement changes** with proper documentation
-4. **Add tests** for new functionality
-5. **Submit pull request** with research validation
+1. Fork the repository
+2. Create a feature branch:
 
-## 📊 Citation
+```bash
+git checkout -b feature/new-algorithm
+```
 
-If you use this implementation in your research, please cite:
+3. Implement changes with proper documentation
+4. Add tests for new functionality
+5. Submit a pull request
+
+### Development Guidelines
+
+* Follow ES6+ JavaScript standards
+* Include JSDoc comments for all functions
+* Maintain test coverage above 80%
+* Update documentation for new features
+
+---
+
+## 📝 License
+
+This project is licensed under the **MIT License** – see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 📄 Citation
 
 ```bibtex
 @software{aqi_routing_system,
-  title={Multi-objective AQI-Aware Routing System},
-  author={[Your Name]},
+  title={Multi-Objective AQI-Aware Routing System: Pareto-Optimal Pathfinding for Health-Aware Urban Mobility},
+  author={Akhilesh Ukey and Team},
   year={2025},
-  url={https://github.com/[username]/route-aqi-app},
+  url={https://github.com/Harshdhoot04/Maps-using-AQI},
   note={Research implementation with graph-based optimization}
 }
 ```
 
-## 📄 License
+---
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+## 🙏 Acknowledgments
 
-## 🔗 Related Work
-
-- **Green routing algorithms**: Environmental cost optimization
-- **Multi-objective vehicle routing**: Pareto frontier approaches
-- **Air quality exposure assessment**: Health impact quantification
-- **Smart city routing**: Real-time optimization systems
+* **OpenWeather API** for real-time AQI data
+* **OSRM** for routing services
+* **Leaflet** for interactive mapping
+* **React.js** for the frontend interface
+* **OpenCage** for geocoding services
 
 ---
 
-**Ready for Research Publication** 🎓  
-This implementation provides the foundation for publishable research in transportation, health informatics, and environmental computing.
+## 📊 Research Impact
+
+This system demonstrates the feasibility of **health-aware urban mobility** through:
+
+- **Multi-objective optimization** for route planning
+- **Real-time environmental data** integration
+- **Pareto-optimal solutions** for complex decision-making
+- **Scalable architecture** for urban-scale deployment
+
+**Ready for Research and Production Use** 🚀
+
+This implementation provides a foundation for intelligent, health-aware routing systems in smart cities and urban planning applications.

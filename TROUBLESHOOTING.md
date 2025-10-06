@@ -82,15 +82,14 @@ The map might be loading but not visible due to CSS issues. Add this to your `st
 3. **Check console**: Look for "Map initialized successfully"
 4. **Verify map appears**: You should see the map with Pune as center
 
-### Step 6: Test Research Features
+### Step 6: Test Enhanced Routing Features
 
 Once the map is working:
 
 1. **Enter locations**: "Pune Airport" → "Shivaji Nagar" 
-2. **Enable research mode**: Toggle "Enhanced Graph Routing"
+2. **Enable enhanced routing**: Toggle "Enhanced Graph Routing"
 3. **Find route**: Click "Find Route"
-4. **Open research dashboard**: Click "Research" button
-5. **Verify charts load**: Check all three tabs work
+4. **View route analysis**: Check route metrics and comparisons
 
 ## 🔧 Common Issues & Solutions
 
@@ -103,8 +102,7 @@ Once the map is working:
 ### Issue: Original script conflicts
 **Solution**: Use the simplified mapLogic.js above
 
-### Issue: Charts not loading in research dashboard
-**Solution**: This is expected if Chart.js dependencies aren't fully loaded - the dummy data should still show
+
 
 ## ✅ Success Indicators
 
@@ -112,10 +110,9 @@ You'll know everything is working when you see:
 
 1. **Map displays** with Leaflet controls
 2. **Sidebar shows** with all form controls
-3. **Research toggle** is visible and functional
+3. **Enhanced routing toggle** is visible and functional
 4. **Find Route button** generates routes
-5. **Research button** opens the analysis dashboard
-6. **Data export** works from the dashboard
+5. **Route analysis** shows metrics and comparisons
 
 ## 🎯 Next Steps After Fixing
 
@@ -123,9 +120,8 @@ Once the map is working:
 
 1. **Test core routing** functionality
 2. **Verify graph routing** integration 
-3. **Test research dashboard** with real data
-4. **Export data** for analysis
-5. **Implement next phase** features (spatio-temporal prediction, uncertainty quantification)
+3. **Test route analysis** with real data
+4. **Implement next phase** features (spatio-temporal prediction, uncertainty quantification)
 
 ## 📞 If Issues Persist
 
@@ -139,4 +135,4 @@ The implementation is solid - this is likely just a timing/loading issue that th
 
 ---
 
-**Remember**: The research features are fully implemented and ready to use once the basic map display is working!
+**Remember**: The enhanced routing features are fully implemented and ready to use once the basic map display is working!

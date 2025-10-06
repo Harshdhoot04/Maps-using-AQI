@@ -1,6 +1,9 @@
-// Configuration
-const OPENWEATHER_KEY = "cc89ee52f5cdf7cd8a3915cba042774f";
-const OPENCAGE_KEY = "c8757ad0a33247e98b6faf04d8ed744f";
+// Import configuration
+import config from './src/config.js';
+
+// Configuration - Load from config module or window object
+const OPENWEATHER_KEY = config.OPENWEATHER_KEY || window.OPENWEATHER_KEY || "your_openweather_api_key_here";
+const OPENCAGE_KEY = config.OPENCAGE_KEY || window.OPENCAGE_KEY || "your_opencage_api_key_here";
 
 // Initialize map
 const map = L.map("map").setView([18.5204, 73.8567], 12);

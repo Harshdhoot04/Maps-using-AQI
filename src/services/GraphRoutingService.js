@@ -1,9 +1,10 @@
 /**
- * Graph-based routing service implementing multi-objective shortest-exposure routing
- * Features: Dijkstra/A*, Pareto front optimization, exposure dose calculation
+ * Enhanced Graph-based routing service implementing multi-objective shortest-exposure routing
+ * Features: Dijkstra/A*, Pareto front optimization, real-time multi-source AQI data
  */
 
 import dijkstra from 'dijkstrajs';
+import AQIService from './AQIService.js';
 
 class GraphRoutingService {
     constructor() {
@@ -107,7 +108,7 @@ class GraphRoutingService {
     }
     
     /**
-     * Get or fetch AQI for a location with caching
+     * Get enhanced AQI data using the multi-source AQI service
      */
     async getAQIWithCache(lat, lng) {
         const key = `${lat.toFixed(3)}_${lng.toFixed(3)}`;
@@ -116,43 +117,98 @@ class GraphRoutingService {
             const cached = this.aqiCache.get(key);
             // Cache for 30 minutes
             if (Date.now() - cached.timestamp < 30 * 60 * 1000) {
-                return cached.aqi;
+                return cached.aqiData.value;
             }
         }
         
-        // Fetch new AQI data
+        // Fetch new AQI data using enhanced service
         try {
-            const OPENWEATHER_KEY = "cc89ee52f5cdf7cd8a3915cba042774f";
-            const response = await fetch(
-                `https://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lng}&appid=${OPENWEATHER_KEY}`
-            );
-            const data = await response.json();
-            const aqi = data.list?.[0]?.main?.aqi || 3; // Default to moderate if unavailable
+            const aqiData = await AQIService.getAQI(lat, lng);
+            const result = {
+                aqiData,
+                timestamp: Date.now()
+            };
             
-            this.aqiCache.set(key, { aqi, timestamp: Date.now() });
-            return aqi;
+            this.aqiCache.set(key, result);
+            
+            // Log data quality information
+            if (aqiData.confidence === 'high' && aqiData.sources && aqiData.sources.length > 1) {
+                console.log(`High-quality AQI data from ${aqiData.sources.length} sources:`, aqiData.sources);
+            }
+            
+            return aqiData.value || 3; // Default to moderate if unavailable
         } catch (error) {
-            console.warn(`Failed to fetch AQI for ${lat}, ${lng}:`, error);
+            console.warn(`Failed to fetch enhanced AQI for ${lat}, ${lng}:`, error);
             return 3; // Default to moderate AQI
         }
     }
     
     /**
-     * Calculate exposure dose for an edge (AQI × travel time)
+     * Calculate enhanced exposure dose for an edge using multi-source AQI data
      */
     async calculateExposureDose(edgeKey) {
         const edgeData = this.edgeWeights.get(edgeKey);
         if (!edgeData) return 0;
         
-        const aqi = await this.getAQIWithCache(
-            edgeData.midpoint.lat, 
-            edgeData.midpoint.lng
-        );
+        try {
+            // Get enhanced AQI data with multiple sources
+            const aqiData = await AQIService.getAQI(
+                edgeData.midpoint.lat, 
+                edgeData.midpoint.lng
+            );
+            
+            const aqi = aqiData.value || 3;
+            const travelTimeMinutes = edgeData.estimatedTravelTime / 60;
+            
+            // Base exposure dose = AQI level × travel time in minutes
+            let exposureDose = aqi * travelTimeMinutes;
+            
+            // Apply confidence weighting - lower confidence gets slightly higher penalty
+            if (aqiData.confidence === 'low') {
+                exposureDose *= 1.1; // 10% penalty for low confidence data
+            } else if (aqiData.confidence === 'high') {
+                exposureDose *= 0.95; // 5% bonus for high confidence data
+            }
+            
+            // Consider individual pollutant components if available
+            if (aqiData.components && aqiData.components.pm2_5) {
+                // PM2.5 is particularly harmful, so apply additional weight
+                const pm25Level = this.categorizePollutuantLevel(aqiData.components.pm2_5, 'pm2_5');
+                if (pm25Level >= 4) { // High PM2.5
+                    exposureDose *= 1.2; // 20% additional penalty for high PM2.5
+                }
+            }
+            
+            return Math.max(exposureDose, 0.1); // Minimum exposure dose
+            
+        } catch (error) {
+            console.warn(`Error calculating exposure dose for edge ${edgeKey}:`, error);
+            return 3 * (edgeData.estimatedTravelTime / 60); // Fallback calculation
+        }
+    }
+    
+    /**
+     * Categorize pollutant levels (PM2.5, PM10, etc.) into AQI-like scale
+     */
+    categorizePollutuantLevel(value, type) {
+        if (!value || value < 0) return 1;
         
-        // Exposure dose = AQI level × travel time in minutes
-        const exposureDose = aqi * (edgeData.estimatedTravelTime / 60);
-        
-        return exposureDose;
+        switch (type) {
+            case 'pm2_5':
+                if (value <= 12) return 1;
+                if (value <= 35.4) return 2;
+                if (value <= 55.4) return 3;
+                if (value <= 150.4) return 4;
+                return 5;
+            case 'pm10':
+                if (value <= 54) return 1;
+                if (value <= 154) return 2;
+                if (value <= 254) return 3;
+                if (value <= 354) return 4;
+                return 5;
+            default:
+                return 3; // Default to moderate
+        }
     }
     
     /**
