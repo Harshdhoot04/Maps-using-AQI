@@ -1,6 +1,9 @@
-// Configuration
-const OPENWEATHER_KEY = "cc89ee52f5cdf7cd8a3915cba042774f";
-const OPENCAGE_KEY = "c8757ad0a33247e98b6faf04d8ed744f";
+// Import configuration
+import config from './src/config.js';
+
+// Configuration - Load from config module or window object
+const OPENWEATHER_KEY = config.OPENWEATHER_KEY || window.OPENWEATHER_KEY || "your_openweather_api_key_here";
+const OPENCAGE_KEY = config.OPENCAGE_KEY || window.OPENCAGE_KEY || "your_opencage_api_key_here";
 
 // Initialize map
 const map = L.map("map").setView([18.5204, 73.8567], 12);
@@ -20,11 +23,11 @@ const routeDurationSpan = document.getElementById("route-duration");
 const avoidHighAqiToggle = document.getElementById("avoid-high-aqi");
 const routeTypeSelect = document.getElementById("route-type");
 const locateMeBtn = document.getElementById("locate-me");
-const toggleLayersBtn = document.getElementById("toggle-layers");
+// const toggleLayersBtn = document.getElementById("toggle-layers"); // Removed
 
-// Mobile Sidebar Toggle
-const sidebarToggle = document.getElementById('sidebar-toggle');
-const sidebar = document.getElementById('sidebar');
+// Mobile Sidebar Toggle - handled by React component
+// const sidebarToggle = document.getElementById('sidebar-toggle');
+// const sidebar = document.getElementById('sidebar');
 
 // State
 let currentMarkers = [];
@@ -73,15 +76,7 @@ function setupMapControls() {
         }
     });
 
-    toggleLayersBtn.addEventListener("click", () => {
-        // Toggle between different map layers
-        const currentLayer = map.getPane("tilePane").style.zIndex;
-        if (currentLayer === "200") {
-            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
-        } else {
-            L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png").addTo(map);
-        }
-    });
+    // Removed toggle layers functionality
 }
 
 // AQI Legend
@@ -105,9 +100,11 @@ function addAQILegend() {
 function clearMap() {
     currentMarkers.forEach(marker => map.removeLayer(marker));
     routePolylines.forEach(polyline => map.removeLayer(polyline));
+    aqiBadgeMarkers.forEach(badge => map.removeLayer(badge));
     if (routingControl) map.removeControl(routingControl);
     currentMarkers = [];
     routePolylines = [];
+    aqiBadgeMarkers = [];
     routeInfo.classList.add("hidden");
 }
 
@@ -129,12 +126,52 @@ async function geocodeAddress(location) {
     }
 }
 
+// --- AQI Tile Cache Optimisation ---
+// Tile size ~2km (≈0.02° lat/lng); cache stored in localStorage with 30-minute TTL
+const TILE_SIZE = 0.02;
+const TILE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+function getTileKey(lat, lng) {
+    const latKey = Math.floor(lat / TILE_SIZE);
+    const lngKey = Math.floor(lng / TILE_SIZE);
+    return `${latKey}_${lngKey}`;
+}
+
+function readTileFromCache(key) {
+    try {
+        const raw = localStorage.getItem(`aqi_tile_${key}`);
+        if (!raw) return null;
+        const { aqi, ts } = JSON.parse(raw);
+        if (Date.now() - ts > TILE_TTL_MS) {
+            localStorage.removeItem(`aqi_tile_${key}`);
+            return null;
+        }
+        return aqi;
+    } catch {
+        return null;
+    }
+}
+
+function writeTileToCache(key, aqi) {
+    try {
+        localStorage.setItem(`aqi_tile_${key}` , JSON.stringify({ aqi, ts: Date.now() }));
+    } catch {
+        // ignore quota errors
+    }
+}
+
 async function getAQI(lat, lng) {
+    const tileKey = getTileKey(lat, lng);
+    const cached = readTileFromCache(tileKey);
+    if (cached !== null) return cached;
+
     try {
         const url = `https://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lng}&appid=${OPENWEATHER_KEY}`;
         const response = await fetch(url);
         const data = await response.json();
-        return data.list?.[0]?.main?.aqi || -1;
+        const aqi = data.list?.[0]?.main?.aqi || -1;
+        writeTileToCache(tileKey, aqi);
+        return aqi;
     } catch {
         return -1;
     }
@@ -180,11 +217,13 @@ async function addMarker(point, label) {
         iconSize: [20, 20]
     });
 
-    L.marker(point, {
+    const aqiBadgeMarker = L.marker(point, {
         icon: aqiBadge,
         zIndexOffset: 1000,
         interactive: false
     }).addTo(map);
+    
+    aqiBadgeMarkers.push(aqiBadgeMarker);
 
     marker.bindPopup(`
         <div class="marker-popup">
@@ -250,10 +289,20 @@ async function processRoutes(routes) {
     }
 
     // Third pass: Draw routes with appropriate styling
+    // For AQI and Distance modes, show only the best route
+    // For Balanced mode, show all routes with best highlighted
+    const showAllRoutes = routeType === 'balanced';
+    const routesToShow = showAllRoutes ? routes : (bestRouteIndex !== -1 ? [routes[bestRouteIndex]] : routes);
+    
     for (let i = 0; i < routes.length; i++) {
         const route = routes[i];
         const avgAQI = route.avgAQI;
         const routeColor = aqiColors[avgAQI !== -1 ? Math.round(avgAQI) : 'unavailable'];
+        
+        // Skip non-best routes for AQI and Distance modes
+        if (!showAllRoutes && i !== bestRouteIndex) {
+            continue;
+        }
 
         const polyline = L.polyline(route.coordinates, {
             color: routeColor,
@@ -262,15 +311,21 @@ async function processRoutes(routes) {
             dashArray: i === bestRouteIndex ? '8, 6' : null,
             className: 'route-line'
         }).on('click', (e) => {
+            const routeLabel = showAllRoutes ? 
+                `Route ${i + 1} ${i === bestRouteIndex ? "(Best Route)" : ""}` :
+                getRouteTypeLabel(routeType);
+            
             L.popup()
                 .setLatLng(e.latlng)
                 .setContent(`
                     <div class="route-popup">
-                        <h3>Route ${i + 1} ${i === bestRouteIndex ? "(Best Route)" : ""}</h3>
+                        <h3>${routeLabel}</h3>
                         <p><strong>Average AQI:</strong> ${avgAQI === -1 ? 'N/A' : avgAQI.toFixed(1)}</p>
                         <p><strong>Distance:</strong> ${(route.summary.totalDistance / 1000).toFixed(1)} km</p>
                         <p><strong>Duration:</strong> ${Math.round(route.summary.totalTime / 60)} minutes</p>
                         ${routeType === 'balanced' ? `<p><strong>Route Score:</strong> ${route.totalScore?.toFixed(2) || 'N/A'}</p>` : ''}
+                        ${routeType === 'aqi' ? '<p><em>Optimized for best air quality</em></p>' : ''}
+                        ${routeType === 'distance' ? '<p><em>Optimized for shortest distance</em></p>' : ''}
                     </div>
                 `)
                 .openOn(map);
@@ -290,6 +345,16 @@ async function processRoutes(routes) {
 
     if (routes.length > 0) {
         map.fitBounds(L.latLngBounds(routes.flatMap(r => r.coordinates)).pad(0.2));
+    }
+}
+
+// Helper function to get route type label
+function getRouteTypeLabel(routeType) {
+    switch(routeType) {
+        case 'aqi': return 'Best AQI Route';
+        case 'distance': return 'Shortest Distance Route';
+        case 'balanced': return 'Balanced Route';
+        default: return 'Optimal Route';
     }
 }
 
@@ -349,27 +414,7 @@ findRouteBtn.addEventListener("click", async () => {
     }
 });
 
-// Mobile Sidebar Toggle
-sidebarToggle.addEventListener('click', () => {
-    sidebar.classList.toggle('active');
-    // Update toggle button icon
-    const icon = sidebarToggle.querySelector('i');
-    icon.classList.toggle('fa-bars');
-    icon.classList.toggle('fa-times');
-});
-
-// Close sidebar when clicking outside on mobile
-document.addEventListener('click', (e) => {
-    if (window.innerWidth <= 768 && 
-        !sidebar.contains(e.target) && 
-        !sidebarToggle.contains(e.target) && 
-        sidebar.classList.contains('active')) {
-        sidebar.classList.remove('active');
-        const icon = sidebarToggle.querySelector('i');
-        icon.classList.add('fa-bars');
-        icon.classList.remove('fa-times');
-    }
-});
+// Mobile sidebar toggle is handled by React component
 
 // Adjust map controls for mobile
 function adjustMapControls() {
